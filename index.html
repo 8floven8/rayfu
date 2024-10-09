@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rayfu</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="heart.png">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: url('background2.jpg') no-repeat center center/cover;
+            font-family: 'Montserrat', sans-serif;
+            user-select: none;
+        }
+
+        .player {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 35px;
+            border-radius: 30px;
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.5);
+            width: 350px;
+            text-align: center;
+            color: white;
+        }
+
+        .album-cover {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 15px;
+            background-color: #ddd;
+            margin-bottom: 20px;
+            background-image: url('background.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .song-info {
+            margin-bottom: 15px;
+        }
+
+        .song-info h2 {
+            margin: 0;
+            font-weight: 700;
+            font-size: 24px;
+        }
+
+        .song-info p {
+            margin: 0;
+            font-size: 16px;
+            color: lightgray;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .play-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            margin: 0 15px;
+            outline: none;
+            transition: transform 0.2s;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .play-btn img {
+            width: 60px;
+            height: 60px;
+        }
+
+        .progress-container {
+            width: 100%;
+            background: #444;
+            height: 8px;
+            border-radius: 4px;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .progress {
+            background: #ffffff;
+            height: 100%;
+            width: 0%;
+            border-radius: 4px;
+        }
+
+        .seek-point {
+            width: 18px;
+            height: 18px;
+            background: #ffffff;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+            z-index: 1;
+        }
+
+        .time {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: lightgray;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="player">
+        <div class="album-cover"></div>
+        <div class="song-info">
+            <h2>RAYFU❤</h2>
+            <p>8floven8</p>
+        </div>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress" id="progressBar"></div>
+            <div class="seek-point" id="seekPoint"></div>
+        </div>
+        <div class="time">
+            <span id="currentTime">0:00</span>
+            <span id="duration">2:03</span>
+        </div>
+
+        <div class="controls">
+            <button class="play-btn" id="playPauseBtn">
+                <img id="playPauseImg" src="play.png" alt="Play">
+            </button>
+        </div>
+        
+        <audio id="audio" src="track.wav"></audio>
+    </div>
+
+    <script>
+        const audio = document.getElementById('audio');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playPauseImg = document.getElementById('playPauseImg');
+        const progressBar = document.getElementById('progressBar');
+        const currentTimeElem = document.getElementById('currentTime');
+        const durationElem = document.getElementById('duration');
+        const progressContainer = document.getElementById('progressContainer');
+        const seekPoint = document.getElementById('seekPoint');
+
+        let isPlaying = false;
+        let isDragging = false;
+
+        playPauseBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                audio.pause();
+                playPauseImg.src = 'play.png';
+            } else {
+                audio.play();
+                playPauseImg.src = 'pause.png';
+            }
+            isPlaying = !isPlaying;
+        });
+
+        audio.addEventListener('timeupdate', () => {
+            if (!isDragging) {
+                const currentTime = audio.currentTime;
+                const duration = audio.duration;
+
+                if (duration > 0) {
+                    const progressPercent = (currentTime / duration) * 100;
+                    progressBar.style.width = `${progressPercent}%`;
+                    seekPoint.style.left = `${progressPercent}%`;
+                    currentTimeElem.textContent = formatTime(currentTime);
+                    durationElem.textContent = formatTime(duration);
+                }
+            }
+        });
+
+        audio.addEventListener('ended', resetPlayer);
+
+        function formatTime(time) {
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+
+        progressContainer.addEventListener('click', (e) => {
+            updateSeekTime(e);
+        });
+
+        seekPoint.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            updateSeekTime(e);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (isDragging) {
+                const rect = progressContainer.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+
+                if (x < 0) x = 0;
+                if (x > rect.width) x = rect.width;
+
+                const percent = x / rect.width;
+                audio.currentTime = percent * audio.duration;
+                isDragging = false;
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const rect = progressContainer.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+
+                if (x < 0) x = 0;
+                if (x > rect.width) x = rect.width;
+
+                const percent = x / rect.width;
+                progressBar.style.width = `${percent * 100}%`;
+                seekPoint.style.left = `${percent * 100}%`;
+
+                const newTime = percent * audio.duration;
+                currentTimeElem.textContent = formatTime(newTime);
+            }
+        });
+
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
+        function updateSeekTime(e) {
+            const rect = progressContainer.getBoundingClientRect();
+            let x = e.clientX - rect.left;
+
+            if (x < 0) x = 0;
+            if (x > rect.width) x = rect.width;
+
+            const percent = x / rect.width;
+            progressBar.style.width = `${percent * 100}%`;
+            seekPoint.style.left = `${percent * 100}%`;
+
+            const newTime = percent * audio.duration;
+            currentTimeElem.textContent = formatTime(newTime);
+        }
+
+        progressContainer.addEventListener('click', (e) => {
+            updateSeekTime(e);
+        });
+
+        progressContainer.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            updateSeekTime(e);
+        });
+
+        seekPoint.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            e.stopPropagation();
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (isDragging) {
+                updateSeekTime(e);
+                isDragging = false;
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const rect = progressContainer.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+
+                if (x < 0) x = 0;
+                if (x > rect.width) x = rect.width;
+
+                const percent = x / rect.width;
+                progressBar.style.width = `${percent * 100}%`;
+                seekPoint.style.left = `${percent * 100}%`;
+
+                const newTime = percent * audio.duration;
+                currentTimeElem.textContent = formatTime(newTime);
+            }
+        });
+
+        function resetPlayer() {
+            audio.currentTime = 0;
+            progressBar.style.width = '0%';
+            seekPoint.style.left = '0%';
+            playPauseImg.src = 'play.png';
+            isPlaying = false;
+        }
+    </script>
+
+</body>
+</html>
